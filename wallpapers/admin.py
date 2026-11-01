@@ -226,25 +226,30 @@ class WallpaperAdmin(admin.ModelAdmin):
     def _render_preview(obj, width):
         if not obj.file:
             return "-"
+        height = width * 3 // 2
+        style = (
+            "display:block;"
+            "object-fit:contain;"
+            "background:#f0f0f0;"
+            "border-radius:4px;"
+        )
         if obj.media_type == MediaType.VIDEO:
-            if obj.thumbnail:
-                # The poster frame is the whole point of the thumbnail, so the
-                # list shows it rather than a scrubbing video element.
-                return format_html(
-                    '<img src="{}" width="{}" style="border-radius:4px;object-fit:cover" />',
-                    obj.thumbnail.url,
-                    width,
-                )
+            poster = obj.thumbnail.url if obj.thumbnail else ""
             return format_html(
-                '<video src="{}" width="{}" muted loop playsinline '
-                'onmouseover="this.play()" onmouseout="this.pause()"></video>',
+                '<video src="{}" poster="{}" width="{}" height="{}" '
+                'controls muted playsinline preload="metadata" style="{}"></video>',
                 obj.file.url,
+                poster,
                 width,
+                height,
+                style,
             )
         return format_html(
-            '<img src="{}" width="{}" style="border-radius:4px;object-fit:cover" />',
-            obj.file.url,
+            '<img src="{}" width="{}" height="{}" style="{}" alt="Wallpaper preview" />',
+            obj.thumbnail.url if obj.thumbnail else obj.file.url,
             width,
+            height,
+            style,
         )
 
     @admin.action(description="Publish selected wallpapers")

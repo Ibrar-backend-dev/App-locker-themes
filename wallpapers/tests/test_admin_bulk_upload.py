@@ -342,6 +342,42 @@ class VideoThumbnailTests(TestCase):
         ).content.decode()
         self.assertIn('name="thumbnail"', body)
 
+    def test_change_form_shows_an_image_preview(self):
+        wallpaper = self.make(
+            payload=photo(width=100, height=100),
+            name="shot.png",
+            content_type="image/png",
+        )
+        self.assertTrue(wallpaper.thumbnail)
+        response = self.client.get(
+            reverse("admin:wallpapers_wallpaper_change", args=[wallpaper.pk])
+        )
+
+        self.assertContains(response, 'alt="Wallpaper preview"')
+        self.assertContains(response, f'src="{wallpaper.thumbnail.url}"')
+
+    def test_changelist_shows_an_image_preview(self):
+        wallpaper = self.make(
+            payload=photo(width=100, height=100),
+            name="shot.png",
+            content_type="image/png",
+        )
+        self.assertTrue(wallpaper.thumbnail)
+        response = self.client.get(reverse("admin:wallpapers_wallpaper_changelist"))
+
+        self.assertContains(response, 'alt="Wallpaper preview"')
+        self.assertContains(response, f'src="{wallpaper.thumbnail.url}"')
+
+    def test_video_preview_has_playback_controls(self):
+        wallpaper = self.make()
+        response = self.client.get(
+            reverse("admin:wallpapers_wallpaper_change", args=[wallpaper.pk])
+        )
+
+        self.assertContains(response, "<video")
+        self.assertContains(response, 'src="{}"'.format(wallpaper.file.url))
+        self.assertContains(response, "controls")
+
     def test_a_video_accepts_a_thumbnail(self):
         wallpaper = self.make()
         response = self.change(

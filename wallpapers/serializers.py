@@ -17,10 +17,28 @@ from .models import Category, Wallpaper, title_from_filename
 class CategorySerializer(serializers.ModelSerializer):
     # Comes from the queryset annotation in the view, not a per-row query.
     artwork_count = serializers.IntegerField(read_only=True)
+    thumbnail_path = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
-        fields = ("id", "name", "description", "position", "artwork_count")
+        fields = (
+            "id",
+            "name",
+            "description",
+            "position",
+            "thumbnail_path",
+            "artwork_count",
+        )
+
+    def get_thumbnail_path(self, obj) -> str | None:
+        if not obj.thumbnail:
+            return None
+        url = obj.thumbnail.url
+        if settings.USE_LOCAL_MEDIA:
+            request = self.context.get("request")
+            if request is not None:
+                return request.build_absolute_uri(url)
+        return url
 
 
 class WallpaperByCategorySerializer(serializers.ModelSerializer):

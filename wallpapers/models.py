@@ -80,6 +80,12 @@ def thumbnail_upload_path(instance: "Wallpaper", filename: str) -> str:
     )
 
 
+def category_thumbnail_upload_path(instance: "Category", filename: str) -> str:
+    """Store category covers under themes/categories with collision-safe names."""
+    extension = os.path.splitext(filename)[1].lower()
+    return f"themes/categories/{uuid.uuid4().hex}{extension}"
+
+
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(
@@ -92,6 +98,13 @@ class Category(models.Model):
         blank=True,
         null=True,
         help_text="Shown in the app. Served as null when left blank.",
+    )
+    thumbnail = models.FileField(
+        upload_to=category_thumbnail_upload_path,
+        validators=[validate_thumbnail_extension],
+        blank=True,
+        null=True,
+        help_text="Optional category cover image. Served as thumbnail_path in the API.",
     )
     position = models.PositiveIntegerField(
         default=0,

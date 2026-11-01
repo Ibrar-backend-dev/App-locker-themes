@@ -24,7 +24,14 @@ GIF = b"GIF89a"
 
 HOST = "127.0.0.1:8000"
 
-CATEGORY_KEYS = ["id", "name", "description", "position", "artwork_count"]
+CATEGORY_KEYS = [
+    "id",
+    "name",
+    "description",
+    "position",
+    "thumbnail_path",
+    "artwork_count",
+]
 ARTWORK_KEYS = [
     "id",
     "category_id",
@@ -56,7 +63,13 @@ class CategoryFeedContractTests(TestCase):
         cls.anime = Category.objects.create(
             name="Anime", description="Anime wallpapers wonderful styles .", position=0
         )
-        cls.nature = Category.objects.create(name="Nature", position=1)  # blank description
+        cls.nature = Category.objects.create(
+            name="Nature",
+            position=1,
+            thumbnail=SimpleUploadedFile(
+                "nature-cover.png", PNG, content_type="image/png"
+            ),
+        )  # blank description
         cls.hidden = Category.objects.create(name="Hidden", position=2, is_active=False)
 
         # Named, premium, png.
@@ -121,9 +134,20 @@ class CategoryFeedContractTests(TestCase):
         rows = {c["id"]: c for c in body["data"]}
         self.assertIsNone(rows[self.nature.id]["description"])
 
-    def test_categories_carry_no_thumbnail(self):
+    def test_category_thumbnail_path_is_absolute(self):
         _, body = self.get("/api/v1/wallpapers/categories")
-        self.assertEqual(set(body["data"][0]), set(CATEGORY_KEYS))
+        row = next(item for item in body["data"] if item["id"] == self.nature.id)
+        self.assertEqual(list(row), CATEGORY_KEYS)
+        self.assertRegex(
+            row["thumbnail_path"],
+            r"^http://127\.0\.0\.1:8000/media/themes/categories/"
+            r"[0-9a-f]{32}\.png$",
+        )
+
+    def test_category_without_thumbnail_returns_null(self):
+        _, body = self.get("/api/v1/wallpapers/categories")
+        row = next(item for item in body["data"] if item["id"] == self.anime.id)
+        self.assertIsNone(row["thumbnail_path"])
 
     def test_clearing_a_title_restores_the_filename(self):
         self.w_png.title = ""

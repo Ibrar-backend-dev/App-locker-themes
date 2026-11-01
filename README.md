@@ -20,8 +20,10 @@ The response uses this envelope:
 
 ### Category row
 
-`id, name, description, position, artwork_count` — in that order. `description` is `null`
-when blank; `artwork_count` counts published items only. Categories carry no thumbnail.
+`id, name, description, position, thumbnail_path, artwork_count` — in that order.
+`description` is `null` when blank; `artwork_count` counts published wallpapers only.
+`thumbnail_path` is the category's absolute cover-image URL, or `null` when no cover is set.
+Set the optional category cover image in Django admin.
 
 ### Artwork row
 

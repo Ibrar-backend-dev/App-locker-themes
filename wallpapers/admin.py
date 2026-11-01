@@ -18,7 +18,7 @@ class CategoryAdmin(admin.ModelAdmin):
     search_fields = ("name", "description")
     prepopulated_fields = {"slug": ("name",)}
     ordering = ("position", "name")
-    fields = ("name", "slug", "description", "position", "is_active")
+    fields = ("name", "slug", "description", "thumbnail", "position", "is_active")
 
     def get_queryset(self, request):
         return (

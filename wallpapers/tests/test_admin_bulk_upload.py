@@ -4,7 +4,6 @@ The add form and the change form are deliberately different shapes, so most of
 what is asserted here is that the change form did *not* move.
 """
 
-import json
 import os
 import re
 import shutil
@@ -308,36 +307,11 @@ class VideoThumbnailTests(TestCase):
             reverse("admin:wallpapers_wallpaper_change", args=[wallpaper.pk]), data
         )
 
-    def feed(self):
-        response = self.client.get("/api/v1/wallpapers", HTTP_HOST="127.0.0.1:8000")
-        return json.loads(response.content)["data"]
-
-    # --- the API contract ---------------------------------------------
-
-    def test_thumbnail_path_is_last_and_null_by_default(self):
-        self.make()
-        row = self.feed()[0]
-
-        self.assertEqual(list(row)[-1], "thumbnail_path")
-        self.assertIsNone(row["thumbnail_path"])
-
-    def test_thumbnail_path_is_absolute_once_set(self):
-        wallpaper = self.make()
-        wallpaper.thumbnail = SimpleUploadedFile("poster.png", PNG, content_type="image/png")
-        wallpaper.save()
-
-        path = self.feed()[0]["thumbnail_path"]
-        self.assertTrue(path.startswith("http://127.0.0.1:8000/media/"))
-        self.assertRegex(
-            path, r"/media/wallpaper/anime/thumbs/\d{4}/\d{2}/[0-9a-f]{32}\.png$"
-        )
-
     def test_an_image_derives_its_own_thumbnail(self):
         wallpaper = self.make(payload=photo(), name="shot.png", content_type="image/png")
 
         self.assertTrue(wallpaper.thumbnail)
         self.assertTrue(wallpaper.thumbnail.name.endswith(".webp"))
-        self.assertIsNotNone(self.feed()[0]["thumbnail_path"])
 
     def test_a_derived_thumbnail_is_at_most_a_third_of_the_upload(self):
         payload = photo()
@@ -349,7 +323,6 @@ class VideoThumbnailTests(TestCase):
         # No ffmpeg, so a video's poster frame stays a manual upload.
         wallpaper = self.make()
         self.assertFalse(wallpaper.thumbnail)
-        self.assertIsNone(self.feed()[0]["thumbnail_path"])
 
     def test_a_hand_picked_thumbnail_is_never_overwritten(self):
         chosen = SimpleUploadedFile("poster.png", PNG, content_type="image/png")

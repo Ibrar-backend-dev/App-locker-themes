@@ -1,19 +1,18 @@
 # Wallpaper API
 
-Django + DRF + Postgres backend serving three public wallpaper feeds, with media on
+Django + DRF + Postgres backend serving public wallpaper-category and artwork feeds, with media on
 Cloudflare R2 and Django admin as the only content-management surface.
 
 ## Endpoints
 
-All are public GETs under `/api/v1/`, JSON only.
+The public API is a GET under `/api/v1/`, returning JSON.
 
 | # | Endpoint | Notes |
 |---|---|---|
 | 1 | `GET /api/v1/wallpapers/categories` | Active categories, newest first (descending `id`) |
-| 2 | `GET /api/v1/wallpapers` | Published items, priority first then newest |
-| 3 | `GET /api/v1/wallpapers?category_id=N` | Same endpoint, one filter, identical row shape |
+| 2 | `GET /api/v1/wallpapers?category_id=N` | Published artwork in the requested active category |
 
-Every response is the same envelope:
+The response uses this envelope:
 
 ```json
 { "data": [ ... ], "meta": { "page": 1, "page_size": 20, "total": 1, "has_next": false } }
@@ -24,25 +23,12 @@ Every response is the same envelope:
 `id, name, description, position, artwork_count` — in that order. `description` is `null`
 when blank; `artwork_count` counts published items only. Categories carry no thumbnail.
 
-### Wallpaper row
+### Artwork row
 
-`id, category_id, media_type, is_premium, title, artwork, created_at, thumbnail_path`
-— in that order, which is deliberate and not alphabetical. `original_filename` is recorded
-on upload and searchable in the admin, but is not part of the row.
-
-- `artwork` is the full-size file as an **absolute** url. Load it directly; prefixing it
-  with the base url
-  gives a doubled address and a broken image.
-- `media_type` is lowercase `image`, `gif` or `video`, derived from the uploaded file.
-- `title` is never `null`. Left unset it falls back to the name the file was uploaded
-  under, with the extension stripped, so `beach sunset.png` becomes `beach sunset`.
-  Clearing it on the change form restores that fallback rather than emptying it.
-- `created_at` is naive UTC with microseconds, e.g. `2026-08-23T10:48:52.245000`.
-- `thumbnail_path` is a small stand-in for the full file, absolute like `artwork`.
-  An **image** gets one generated on upload: a WebP shrunk until it fits within a third of
-  the original's file size, which lands around 3-4x smaller. A **video** cannot be processed
-  without ffmpeg, so its poster frame is uploaded by hand in the admin and is `null` until
-  someone does. **Gifs** serve `null`. A thumbnail chosen by hand is never overwritten.
+`id, category_id, title, media_type, is_premium, original_filename, file_path, created_at`
+— in that order. `title` is derived from the uploaded original filename with its extension
+removed (for example, `wallpaper.mp4` becomes `wallpaper`). `file_path` is an absolute,
+directly loadable URL. `created_at` is an ISO 8601 timestamp in UTC.
 
 ### Query parameters
 
@@ -50,7 +36,7 @@ on upload and searchable in the admin, but is not part of the row.
 |---|---|---|
 | `page` | 1 | 1-based. Past the end returns an empty list, not an error. |
 | `page_size` | 20 | Max 100. Over the cap is a **400**, not a silent clamp. |
-| `category_id` | — | Feed 3 only. Non-numeric is a 400; an unknown id returns an empty list. |
+| `category_id` | Required for artwork | Positive category ID; unpublished artwork and inactive categories are not returned. |
 
 Errors come back as `{"detail": "..."}`.
 
@@ -68,8 +54,8 @@ cp .env.example .env                              # then edit it
 ```
 
 Add a category at `/admin/`, then upload files to it — up to 10 per submit, one
-wallpaper per file, each published at priority 0 and titled after its filename. Then hit
-the endpoints above.
+wallpaper per file, each published at priority 0 and titled after its filename. The
+categories endpoint reports active categories and their published wallpaper counts.
 
 ## Deploying to Railway
 
@@ -137,8 +123,8 @@ legacy B2 setup). Nothing else changes — uploads keep the same
 
 ## Tests
 
-`wallpapers/tests/test_contract.py` asserts the contract literally — key order, null
-handling, the `created_at` format, ordering, and every 400 / empty-list edge case above.
+`wallpapers/tests/test_contract.py` asserts the category and artwork response contracts and
+verifies that the unfiltered wallpaper-list URL returns 404.
 
 ```bash
 .venv/Scripts/python manage.py test

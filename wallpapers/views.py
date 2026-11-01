@@ -1,17 +1,18 @@
 """The three public feeds.
 
-Requests 2 and 3 of the collection are one view with one optional filter, so
-both serve byte-identical row shapes.
+The wallpaper feed requires a category_id; the unfiltered wallpaper list is
+intentionally not exposed.
 """
 
 from django.db.models import Count, Q
+from django.http import Http404
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Category, Wallpaper
 from .pagination import paginate
-from .serializers import CategorySerializer, WallpaperSerializer
+from .serializers import CategorySerializer, WallpaperByCategorySerializer
 
 
 class FeedView(APIView):
@@ -46,22 +47,24 @@ class CategoryListView(FeedView):
         )
 
 
-class WallpaperListView(FeedView):
-    """GET /api/v1/wallpapers  and  GET /api/v1/wallpapers?category_id=N"""
+class WallpaperByCategoryView(FeedView):
+    """GET /api/v1/wallpapers?category_id=N"""
 
-    serializer_class = WallpaperSerializer
+    serializer_class = WallpaperByCategorySerializer
 
     def get_queryset(self, request):
-        queryset = Wallpaper.objects.filter(is_published=True)
-
         raw_category_id = request.query_params.get("category_id")
-        if raw_category_id not in (None, ""):
-            try:
-                category_id = int(raw_category_id)
-            except (TypeError, ValueError):
-                raise ValidationError("category_id must be an integer.")
-            # An id that matches nothing simply yields an empty feed, so there
-            # is no existence check to make here.
-            queryset = queryset.filter(category_id=category_id)
+        if raw_category_id in (None, ""):
+            raise Http404
+        try:
+            category_id = int(raw_category_id)
+        except (TypeError, ValueError):
+            raise ValidationError("category_id must be an integer.")
+        if category_id < 1:
+            raise ValidationError("category_id must be a positive integer.")
 
-        return queryset
+        return Wallpaper.objects.filter(
+            category_id=category_id,
+            category__is_active=True,
+            is_published=True,
+        )

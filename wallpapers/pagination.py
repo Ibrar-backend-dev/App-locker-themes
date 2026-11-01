@@ -1,10 +1,9 @@
-"""Paging for the feed envelope.
+"""Paging for the category feed envelope.
 
 DRF's PageNumberPagination is the wrong shape here on three counts: it emits
 count/next/previous rather than our ``meta``, it silently clamps an oversized
 page_size where the contract wants a 400, and it 404s past the last page where
-the contract wants an empty list. Doing the slicing by hand is shorter than
-overriding all three.
+the contract wants an empty list.
 """
 
 from rest_framework.exceptions import ValidationError

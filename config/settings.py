@@ -134,7 +134,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-# The API contract serves naive UTC timestamps, so the whole stack stores UTC.
+# Keep project and admin timestamps in UTC.
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
@@ -258,7 +258,7 @@ else:
     }
 
 # --- DRF -----------------------------------------------------------------
-# The three feeds are public reads, JSON only, with our own envelope; the
+# The category feed is a public read, JSON only, with our own envelope; the
 # stock pagination classes do not apply.
 
 REST_FRAMEWORK = {

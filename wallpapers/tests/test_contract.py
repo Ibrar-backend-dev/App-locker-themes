@@ -1,7 +1,7 @@
-"""The API contract, asserted literally.
+"""The category API contract and removed-route behavior.
 
-The client parses a fixed shape, so these tests care about key *order*, null
-semantics and the exact datetime format - not just "the right data came back".
+The client parses a fixed shape, so these tests care about key *order* and null
+semantics, not just "the right data came back".
 """
 
 import json
@@ -22,18 +22,18 @@ PNG = bytes.fromhex(
 MP4 = b"\x00\x00\x00\x18ftypmp42"
 GIF = b"GIF89a"
 
-HOST = "192.168.18.8:8000"
+HOST = "127.0.0.1:8000"
 
 CATEGORY_KEYS = ["id", "name", "description", "position", "artwork_count"]
-WALLPAPER_KEYS = [
+ARTWORK_KEYS = [
     "id",
     "category_id",
+    "title",
     "media_type",
     "is_premium",
-    "title",
-    "artwork",
+    "original_filename",
+    "file_path",
     "created_at",
-    "thumbnail_path",
 ]
 META_KEYS = ["page", "page_size", "total", "has_next"]
 
@@ -50,7 +50,7 @@ _TEMP_MEDIA = tempfile.mkdtemp()
         "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
     },
 )
-class FeedContractTests(TestCase):
+class CategoryFeedContractTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.anime = Category.objects.create(
@@ -125,124 +125,76 @@ class FeedContractTests(TestCase):
         _, body = self.get("/api/v1/wallpapers/categories")
         self.assertEqual(set(body["data"][0]), set(CATEGORY_KEYS))
 
-    # --- 2. all wallpapers -----------------------------------------------
-
-    def test_wallpaper_feed_shape_and_key_order(self):
-        response, body = self.get("/api/v1/wallpapers")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(body), ["data", "meta"])
-        self.assertEqual(list(body["data"][0]), WALLPAPER_KEYS)
-        self.assertEqual(list(body["meta"]), META_KEYS)
-
-    def test_color_code_is_not_served(self):
-        _, body = self.get("/api/v1/wallpapers")
-        self.assertNotIn("color_code", body["data"][0])
-
-    def test_unpublished_items_are_excluded(self):
-        _, body = self.get("/api/v1/wallpapers")
-        self.assertEqual(body["meta"]["total"], 3)
-
-    def test_ordering_is_priority_first_then_newest(self):
-        _, body = self.get("/api/v1/wallpapers")
-        self.assertEqual(
-            [row["id"] for row in body["data"]],
-            [self.w_mp4.id, self.w_gif.id, self.w_png.id],
-        )
-
-    def test_an_untitled_item_falls_back_to_its_filename(self):
-        _, body = self.get("/api/v1/wallpapers")
-        row = next(r for r in body["data"] if r["id"] == self.w_mp4.id)
-        # Uploaded as clip.mp4 with no title given.
-        self.assertEqual(row["title"], "clip")
-
     def test_clearing_a_title_restores_the_filename(self):
         self.w_png.title = ""
         self.w_png.save()
         self.assertEqual(self.w_png.title, "my shot")
 
-    def test_no_row_ever_serves_a_null_title(self):
-        _, body = self.get("/api/v1/wallpapers")
-        self.assertTrue(all(r["title"] for r in body["data"]))
-
-    def test_original_filename_is_kept_but_never_served(self):
-        # Still recorded for the admin's search and __str__; deliberately not
-        # part of the row the app parses.
+    def test_original_filename_is_kept(self):
         self.assertEqual(self.w_png.original_filename, "my shot.png")
-        _, body = self.get("/api/v1/wallpapers")
-        self.assertNotIn("original_filename", body["data"][0])
 
-    def test_media_type_is_derived_and_lowercase(self):
-        _, body = self.get("/api/v1/wallpapers")
-        by_id = {r["id"]: r["media_type"] for r in body["data"]}
-        self.assertEqual(by_id[self.w_mp4.id], "video")
-        self.assertEqual(by_id[self.w_gif.id], "gif")
-        self.assertEqual(by_id[self.w_png.id], "image")
+    def test_wallpaper_list_without_category_id_returns_404(self):
+        response = self.client.get("/api/v1/wallpapers", HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 404)
 
-    def test_artwork_is_absolute_and_follows_the_upload_layout(self):
-        _, body = self.get("/api/v1/wallpapers")
-        row = next(r for r in body["data"] if r["id"] == self.w_png.id)
-        self.assertRegex(
-            row["artwork"],
-            r"^http://192\.168\.18\.8:8000/media/wallpaper/anime/assets/"
-            r"\d{4}/\d{2}/[0-9a-f]{32}\.png$",
-        )
-
-    def test_created_at_is_naive_utc_with_six_fraction_digits(self):
-        _, body = self.get("/api/v1/wallpapers")
-        for row in body["data"]:
-            self.assertRegex(
-                row["created_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}$"
-            )
-
-    # --- 3. wallpapers by category ---------------------------------------
-
-    def test_by_category_serves_an_identical_row_shape(self):
-        _, unfiltered = self.get("/api/v1/wallpapers")
+    def test_artwork_by_category_response_shape_and_values(self):
         response, body = self.get(f"/api/v1/wallpapers?category_id={self.anime.id}")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(body["data"][0]), list(unfiltered["data"][0]))
+        self.assertEqual(list(body), ["data", "meta"])
+        self.assertEqual(list(body["data"][0]), ARTWORK_KEYS)
+        self.assertEqual(list(body["meta"]), META_KEYS)
         self.assertEqual(body["meta"]["total"], 3)
 
-    def test_category_holding_only_unpublished_items_is_empty(self):
+        row = next(item for item in body["data"] if item["id"] == self.w_png.id)
+        self.assertEqual(row["category_id"], self.anime.id)
+        self.assertEqual(row["title"], "my shot")
+        self.assertEqual(row["media_type"], "image")
+        self.assertTrue(row["is_premium"])
+        self.assertEqual(row["original_filename"], "my shot.png")
+        self.assertRegex(
+            row["file_path"],
+            r"^http://127\.0\.0\.1:8000/media/wallpaper/anime/assets/"
+            r"\d{4}/\d{2}/[0-9a-f]{32}\.png$",
+        )
+        self.assertRegex(
+            row["created_at"],
+            r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}\+00:00$",
+        )
+
+    def test_artwork_by_category_excludes_unpublished_and_inactive_categories(self):
         _, body = self.get(f"/api/v1/wallpapers?category_id={self.nature.id}")
         self.assertEqual(body["data"], [])
+        self.assertEqual(body["meta"]["total"], 0)
 
-    def test_unknown_category_id_is_an_empty_list_not_an_error(self):
-        response, body = self.get("/api/v1/wallpapers?category_id=999999")
-        self.assertEqual(response.status_code, 200)
+        _, body = self.get(f"/api/v1/wallpapers?category_id={self.hidden.id}")
         self.assertEqual(body["data"], [])
 
-    def test_non_numeric_category_id_is_a_400(self):
-        response, body = self.get("/api/v1/wallpapers?category_id=abc")
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(list(body), ["detail"])
+    def test_artwork_by_category_validates_category_id(self):
+        for value in ("abc", "0", "-1"):
+            with self.subTest(category_id=value):
+                response = self.client.get(
+                    f"/api/v1/wallpapers?category_id={value}", HTTP_HOST=HOST
+                )
+                self.assertEqual(response.status_code, 400)
 
     # --- paging ----------------------------------------------------------
 
     def test_page_size_over_the_cap_is_a_400_not_a_clamp(self):
-        for path in ("/api/v1/wallpapers", "/api/v1/wallpapers/categories"):
-            with self.subTest(path=path):
-                response, _ = self.get(f"{path}?page_size=101")
-                self.assertEqual(response.status_code, 400)
+        response, _ = self.get("/api/v1/wallpapers/categories?page_size=101")
+        self.assertEqual(response.status_code, 400)
 
     def test_page_size_at_the_cap_is_accepted(self):
-        response, _ = self.get("/api/v1/wallpapers?page_size=100")
+        response, _ = self.get("/api/v1/wallpapers/categories?page_size=100")
         self.assertEqual(response.status_code, 200)
 
     def test_page_past_the_end_is_an_empty_list_not_a_404(self):
-        response, body = self.get("/api/v1/wallpapers?page=9999")
+        response, body = self.get("/api/v1/wallpapers/categories?page=9999")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(body["data"], [])
         self.assertFalse(body["meta"]["has_next"])
 
-    def test_has_next_walks_the_feed(self):
-        _, first = self.get("/api/v1/wallpapers?page_size=2")
-        self.assertEqual(first["meta"], {"page": 1, "page_size": 2, "total": 3, "has_next": True})
-        _, last = self.get("/api/v1/wallpapers?page=2&page_size=2")
-        self.assertEqual(last["meta"], {"page": 2, "page_size": 2, "total": 3, "has_next": False})
-
     def test_non_positive_or_non_numeric_paging_is_a_400(self):
         for query in ("page=0", "page=-1", "page=abc", "page_size=0", "page_size=abc"):
             with self.subTest(query=query):
-                response, _ = self.get(f"/api/v1/wallpapers?{query}")
+                response, _ = self.get(f"/api/v1/wallpapers/categories?{query}")
                 self.assertEqual(response.status_code, 400)

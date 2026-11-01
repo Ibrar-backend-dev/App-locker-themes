@@ -1,7 +1,7 @@
-"""Data model behind the three wallpaper feeds.
+"""Data model for wallpaper categories and uploaded wallpapers.
 
-Everything the API exposes is derived here rather than in the serializer, so a
-row created from the admin, a shell or a future import all look identical.
+Upload-related behavior is centralized here so admin, shell, and imported
+records follow the same rules.
 """
 
 import os

@@ -5,11 +5,13 @@ and JSONRenderer preserves it, so these tuples must not be "tidied up" into
 alphabetical or model order.
 """
 
+from datetime import timezone as dt_timezone
+
 from django.conf import settings
+from django.utils import timezone
 from rest_framework import serializers
 
-from .fields import NaiveUTCDateTimeField
-from .models import Category, Wallpaper
+from .models import Category, Wallpaper, title_from_filename
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -21,44 +23,41 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ("id", "name", "description", "position", "artwork_count")
 
 
-class WallpaperSerializer(serializers.ModelSerializer):
-    # Reads the FK column straight off the instance - no join.
+class WallpaperByCategorySerializer(serializers.ModelSerializer):
     category_id = serializers.IntegerField(read_only=True)
-    artwork = serializers.SerializerMethodField()
-    created_at = NaiveUTCDateTimeField(read_only=True)
-    thumbnail_path = serializers.SerializerMethodField()
+    title = serializers.SerializerMethodField()
+    file_path = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
 
     class Meta:
         model = Wallpaper
         fields = (
             "id",
             "category_id",
+            "title",
             "media_type",
             "is_premium",
-            "title",
-            "artwork",
+            "original_filename",
+            "file_path",
             "created_at",
-            "thumbnail_path",
         )
 
-    def get_artwork(self, obj) -> str | None:
-        return self._absolute(obj.file)
+    def get_title(self, obj) -> str | None:
+        return title_from_filename(obj.original_filename or "").strip() or None
 
-    def get_thumbnail_path(self, obj) -> str | None:
-        """Null unless a video has been given one - never derived from the file."""
-        return self._absolute(obj.thumbnail)
-
-    def _absolute(self, filefield) -> str | None:
-        """Always an absolute, directly loadable url.
-
-        Under B2 the storage backend already returns one; the local-media
-        fallback returns /media/... which we absolutize against the request.
-        """
-        if not filefield:
+    def get_file_path(self, obj) -> str | None:
+        if not obj.file:
             return None
-        url = filefield.url
+        url = obj.file.url
         if settings.USE_LOCAL_MEDIA:
             request = self.context.get("request")
             if request is not None:
                 return request.build_absolute_uri(url)
         return url
+
+    def get_created_at(self, obj) -> str:
+        value = obj.created_at
+        if timezone.is_naive(value):
+            value = timezone.make_aware(value, dt_timezone.utc)
+        value = timezone.localtime(value, dt_timezone.utc)
+        return value.isoformat(timespec="microseconds")

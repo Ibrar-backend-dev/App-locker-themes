@@ -70,8 +70,7 @@ class WallpaperAdmin(admin.ModelAdmin):
             {
                 "fields": ("thumbnail", "thumbnail_preview"),
                 "description": (
-                    "Videos only, and optional. Left empty the API serves "
-                    "thumbnail_path as null and the app falls back to the video."
+                    "Videos only, and optional. Leave empty if no poster frame is available."
                 ),
             },
         ),

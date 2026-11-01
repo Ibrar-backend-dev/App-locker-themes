@@ -7,9 +7,9 @@ Cloudflare R2 and Django admin as the only content-management surface.
 
 The public API is a GET under `/api/v1/`, returning JSON.
 
-| # | Endpoint | Notes |
-|---|---|---|
-| 1 | `GET /api/v1/wallpapers/categories` | Active categories, newest first (descending `id`) |
+| # | Endpoint                               | Notes                                              |
+|---|----------------------------------------|----------------------------------------------------|
+| 1 | `GET /api/v1/wallpapers/categories`    | Active categories, newest first (descending `id`)  |
 | 2 | `GET /api/v1/wallpapers?category_id=N` | Published artwork in the requested active category |
 
 The response uses this envelope:
@@ -34,11 +34,11 @@ directly loadable URL. `created_at` is an ISO 8601 timestamp in UTC.
 
 ### Query parameters
 
-| Param | Default | Behaviour |
-|---|---|---|
-| `page` | 1 | 1-based. Past the end returns an empty list, not an error. |
-| `page_size` | 20 | Max 100. Over the cap is a **400**, not a silent clamp. |
-| `category_id` | Required for artwork | Positive category ID; unpublished artwork and inactive categories are not returned. |
+| Param         | Default              | Behaviour                                                             |
+|---------------|----------------------|-----------------------------------------------------------------------|
+| `page`        | 1                    | 1-based. Past the end returns an empty list, not an error.            |
+| `page_size`   | 20                   | Max 100. Over the cap is a **400**, not a silent clamp.               |
+| `category_id` | Required for artwork | Positive ID; only published artwork in active categories is returned. |
 
 Errors come back as `{"detail": "..."}`.
 
@@ -71,19 +71,19 @@ before the final domain is known.
 
 ### Variables to set on the service
 
-| Variable | Value |
-|---|---|
-| `SECRET_KEY` | fresh random string, never the local one |
-| `DEBUG` | `False` |
-| `DATABASE_URL` | `${{ Postgres.DATABASE_URL }}` - a reference, not a pasted literal |
-| `USE_LOCAL_MEDIA` | `False` |
-| `R2_ACCOUNT_ID` | Cloudflare account ID |
-| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | R2 S3 API credentials |
-| `R2_BUCKET_NAME` | R2 bucket name |
-| `R2_ENDPOINT_URL` | `https://<account-id>.r2.cloudflarestorage.com` |
-| `R2_PUBLIC_BASE_URL` | Public HTTPS bucket URL, such as its `r2.dev` domain |
-| `ALLOWED_HOSTS` | only if you add a custom domain |
-| `CSRF_TRUSTED_ORIGINS` | only for a custom domain, with scheme: `https://example.com` |
+| Variable                                    | Value                                                              |
+|---------------------------------------------|--------------------------------------------------------------------|
+| `SECRET_KEY`                                | fresh random string, never the local one                           |
+| `DEBUG`                                     | `False`                                                            |
+| `DATABASE_URL`                              | `${{ Postgres.DATABASE_URL }}` - a reference, not a pasted literal |
+| `USE_LOCAL_MEDIA`                           | `False`                                                            |
+| `R2_ACCOUNT_ID`                             | Cloudflare account ID                                              |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | R2 S3 API credentials                                              |
+| `R2_BUCKET_NAME`                            | R2 bucket name                                                     |
+| `R2_ENDPOINT_URL`                           | `https://<account-id>.r2.cloudflarestorage.com`                    |
+| `R2_PUBLIC_BASE_URL`                        | Public HTTPS bucket URL, such as its `r2.dev` domain               |
+| `ALLOWED_HOSTS`                             | only if you add a custom domain                                    |
+| `CSRF_TRUSTED_ORIGINS`                      | only for a custom domain, with scheme: `https://example.com`       |
 
 **`USE_LOCAL_MEDIA` must be `False` in production.** Railway's filesystem is ephemeral,
 so anything uploaded through the admin in local-media mode disappears on the next deploy

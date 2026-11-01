@@ -7,3 +7,4 @@ Pillow~=11.0
 django-environ~=0.11
 gunicorn~=26.2
 whitenoise~=6.12
+bcrypt~=4.0

@@ -8,7 +8,7 @@
       "_id": "wrk_wallpaper_api",
       "_type": "workspace",
       "parentId": null,
-      "name": "Wallpaper API",
+      "name": "App Locker Themes",
       "description": "Django + DRF category feed under /api/v1/.",
       "scope": "collection",
       "created": 1758326400000,

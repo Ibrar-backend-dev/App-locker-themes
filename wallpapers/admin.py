@@ -269,6 +269,6 @@ class WallpaperAdmin(admin.ModelAdmin):
         self.message_user(request, f"{queryset.update(is_premium=False)} marked free.")
 
 
-admin.site.site_header = "Wallpaper API admin"
-admin.site.site_title = "Wallpaper API"
+admin.site.site_header = "App Locker Themes"
+admin.site.site_title = "App Locker Themes"
 admin.site.index_title = "Content"
